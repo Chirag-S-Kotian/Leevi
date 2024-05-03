@@ -1,15 +1,18 @@
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import client, {
   databases,
   DATABASE_ID,
   COL_ID_MSGS,
 } from "../appwrite/AppWriteConfig";
-import { ID, Query } from "appwrite";
+import { ID, Query, Permission, Role } from "appwrite";
+import Header from "../components/Header";
+import { useAuth } from "../utils/AuthContext";
 import { Trash2 } from "react-feather";
 
 const Room = () => {
-  const [messages, setMessages] = useState([]);
   const [messageBody, setMessageBody] = useState("");
+  const [messages, setMessages] = useState([]);
+  const { user } = useAuth();
 
   useEffect(() => {
     getMessages();
@@ -17,32 +20,54 @@ const Room = () => {
     const unsubscribe = client.subscribe(
       `databases.${DATABASE_ID}.collections.${COL_ID_MSGS}.documents`,
       (response) => {
-        // Callback will be executed on changes for documents A and all files.
-        console.log(response);
-
-        if (response.includes("databases.*.collections.*.documents.*.create")) {
-          console.log("MSG CREATED");
-          // Prepend the new message to the existing messages array
-          setMessages((prevMessages) => [...prevMessages, response.payload]);
+        if (
+          response.events.includes(
+            "databases.*.collections.*.documents.*.create"
+          )
+        ) {
+          console.log("A MESSAGE WAS CREATED");
+          setMessages((prevState) => [response.payload, ...prevState]);
         }
-        if (response.includes("databases.*.collections.*.documents.*.delete")) {
-          console.log("Msg deleted");
-          setMessages((p) =>
-            p.filter((msg) => msg.$id !== response.payload.$id)
+
+        if (
+          response.events.includes(
+            "databases.*.collections.*.documents.*.delete"
+          )
+        ) {
+          console.log("A MESSAGE WAS DELETED!!!");
+          setMessages((prevState) =>
+            prevState.filter((message) => message.$id !== response.payload.$id)
           );
         }
       }
     );
+
+    console.log("unsubscribe:", unsubscribe);
+
     return () => {
       unsubscribe();
     };
   }, []);
 
-  //for sending the messages to the database
+  const getMessages = async () => {
+    const response = await databases.listDocuments(
+      DATABASE_ID,
+      COL_ID_MSGS,
+      [Query.orderDesc("$createdAt"), Query.limit(100)]
+    );
+    console.log(response.documents);
+    setMessages(response.documents);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("MESSAGE:", messageBody);
 
-    let payload = {
+    const permissions = [Permission.write(Role.user(user.$id))];
+
+    const payload = {
+      user_id: user.$id,
+      username: user.name,
       body: messageBody,
     };
 
@@ -50,76 +75,86 @@ const Room = () => {
       DATABASE_ID,
       COL_ID_MSGS,
       ID.unique(),
-      payload
+      payload,
+      permissions
     );
 
-    // // Prepend the new message to the existing messages array
-    // setMessages((prevMessages) => [...prevMessages, response]);
+    console.log("RESPONSE:", response);
+
+    // setMessages(prevState => [response, ...prevState])
+
     setMessageBody("");
   };
 
-  //for arranging the messages by deliveried time
-  const getMessages = async () => {
-    const response = await databases.listDocuments(DATABASE_ID, COL_ID_MSGS, [
-      Query.orderAsc("$createdAt"),
-      Query.limit(20),
-    ]);
-    setMessages(response.documents);
-  };
-
-  //for deleting the messages
-  const deleteMessage = async (message_id) => {
-    await databases.deleteDocument(DATABASE_ID, COL_ID_MSGS, message_id);
-    setMessages((p) => messages.filter((msg) => msg.$id !== message_id));
+  const deleteMessage = async (id) => {
+    await databases.deleteDocument(DATABASE_ID, COL_ID_MSGS, id);
+    //setMessages(prevState => prevState.filter(message => message.$id !== message_id))
   };
 
   return (
-    <div className="container">
+    <main className="container">
+      <Header />
       <div className="room--container">
-        <div>
-          {messages.map((message) => (
-            <div key={message.$id} className="message--wrapper">
-              <div className="message--header">
-                <small className="message-timestamp">
-                  {new Date(message.$createdAt).toLocaleString()}
-                </small>
-                <Trash2
-                  className="delete--btn"
-                  onClick={() => {
-                    deleteMessage(message.$id);
-                  }}
-                />
-              </div>
-              <div className="message--body">
-                <span>{message.body}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <form onSubmit={handleSubmit} id="message--form">
+        <form id="message--form" onSubmit={handleSubmit}>
           <div>
             <textarea
               required
-              maxLength="1000"
-              placeholder="Say Something.."
+              maxlength="250"
+              placeholder="Say something..."
               onChange={(e) => {
                 setMessageBody(e.target.value);
               }}
               value={messageBody}
             ></textarea>
           </div>
+
           <div className="send-btn--wrapper">
-            <button
-              className="btn btn--secondary"
-              type="submit"
-              onClick={handleSubmit}
-            >
-              Send
-            </button>
+            <input className="btn btn--secondary" type="submit" value="send" />
           </div>
         </form>
+
+        <div>
+          {messages.map((message) => (
+            <div key={message.$id} className={"message--wrapper"}>
+              <div className="message--header">
+                <p>
+                  {message?.username ? (
+                    <span> {message?.username}</span>
+                  ) : (
+                    "Anonymous user"
+                  )}
+
+                  <small className="message-timestamp">
+                    {" "}
+                    {new Date(message.$createdAt).toLocaleString()}
+                  </small>
+                </p>
+
+                {message.$permissions.includes(
+                  `delete(\"user:${user.$id}\")`
+                ) && (
+                  <Trash2
+                    className="delete--btn"
+                    onClick={() => {
+                      deleteMessage(message.$id);
+                    }}
+                  />
+                )}
+              </div>
+
+              <div
+                className={
+                  "message--body" +
+                  (message.user_id === user.$id ? " message--body--owner" : "")
+                }
+              >
+                <span>{message.body}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </main>
   );
 };
 

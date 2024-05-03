@@ -1,17 +1,22 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import LoginPage from "./components/LoginPage";
-import Room from "./components/Room";
 import PrivateRoutes from "./components/PrivateRoutes";
+import Room from "./components/Room";
+import LoginPage from "./components/LoginPage";
+import RegisterPage from "./components/RegisterPage";
+import { AuthProvider } from "./utils/AuthContext";
 
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Room />} />
-        <Route element={<PrivateRoutes />}>
+      <AuthProvider>
+        <Routes>
           <Route path="/login" element={<LoginPage />} />
-        </Route>
-      </Routes>
+          <Route path="/register" element={<RegisterPage />} />
+          <Route element={<PrivateRoutes />}>
+            <Route path="/" element={<Room />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }
