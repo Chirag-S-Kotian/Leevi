@@ -26,7 +26,7 @@ const Room = () => {
           )
         ) {
           console.log("A MESSAGE WAS CREATED");
-          setMessages((prevState) => [response.payload, ...prevState]);
+          setMessages((prevState) => [...prevState, response.payload]);
         }
 
         if (
@@ -50,11 +50,10 @@ const Room = () => {
   }, []);
 
   const getMessages = async () => {
-    const response = await databases.listDocuments(
-      DATABASE_ID,
-      COL_ID_MSGS,
-      [Query.orderDesc("$createdAt"), Query.limit(100)]
-    );
+    const response = await databases.listDocuments(DATABASE_ID, COL_ID_MSGS, [
+      Query.orderAsc("$createdAt"),
+      Query.limit(100),
+    ]);
     console.log(response.documents);
     setMessages(response.documents);
   };
@@ -95,24 +94,6 @@ const Room = () => {
     <main className="container">
       <Header />
       <div className="room--container">
-        <form id="message--form" onSubmit={handleSubmit}>
-          <div>
-            <textarea
-              required
-              maxlength="250"
-              placeholder="Say something..."
-              onChange={(e) => {
-                setMessageBody(e.target.value);
-              }}
-              value={messageBody}
-            ></textarea>
-          </div>
-
-          <div className="send-btn--wrapper">
-            <input className="btn btn--secondary" type="submit" value="send" />
-          </div>
-        </form>
-
         <div>
           {messages.map((message) => (
             <div key={message.$id} className={"message--wrapper"}>
@@ -153,6 +134,23 @@ const Room = () => {
             </div>
           ))}
         </div>
+        <form id="message--form" onSubmit={handleSubmit}>
+          <div>
+            <textarea
+              required
+              maxLength="250"
+              placeholder="Say something..."
+              onChange={(e) => {
+                setMessageBody(e.target.value);
+              }}
+              value={messageBody}
+            ></textarea>
+          </div>
+
+          <div className="send-btn--wrapper">
+            <input className="btn btn--secondary" type="submit" value="send" />
+          </div>
+        </form>
       </div>
     </main>
   );

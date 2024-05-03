@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }) => {
     console.log("CREDS:", credentials);
 
     try {
-      let response = await account.createEmailSession(
+      let response = await account.createEmailPasswordSession(
         credentials.email,
         credentials.password
       );
@@ -62,9 +62,9 @@ export const AuthProvider = ({ children }) => {
       );
       console.log("User registered!", response);
 
-      await account.createEmailSession(
+      await account.createEmailPasswordSession(
         credentials.email,
-        credentials.password1,
+        credentials.password1
       );
       let accountDetails = await account.get();
       setUser(accountDetails);
