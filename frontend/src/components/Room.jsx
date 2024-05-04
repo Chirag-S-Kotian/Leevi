@@ -145,10 +145,11 @@ const Room = () => {
               }}
               value={messageBody}
             ></textarea>
-          </div>
-
-          <div className="send-btn--wrapper">
-            <input className="btn btn--secondary" type="submit" value="send" />
+            <div className="send-btn--wrapper">
+              <button className="btn btn--secondary" type="submit">
+                <i className="fa-solid fa-paper-plane"></i>
+              </button>
+            </div>
           </div>
         </form>
       </div>
